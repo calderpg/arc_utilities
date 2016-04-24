@@ -36,15 +36,6 @@ int main(int argc, char** argv)
     std::cout << "Individual vectors: " << PrettyPrint::PrettyPrint(testvecs) << std::endl;
     Eigen::Vector3d averagevec = EigenHelpers::AverageEigenVector3d(testvecs);
     std::cout << "Average vector: " << PrettyPrint::PrettyPrint(averagevec) << std::endl;
-    auto seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-    std::mt19937_64 prng(seed);
-    arc_helpers::TruncatedNormalDistribution dist(0.0, 1.0, -5.0, 5.0);
-    std::vector<double> test_trunc_normals(100000, 0.0);
-    for (size_t idx = 0; idx < test_trunc_normals.size(); idx++)
-    {
-        test_trunc_normals[idx] = dist(prng);
-    }
-    std::cout << "Truncated normal test:\n" << PrettyPrint::PrettyPrint(test_trunc_normals, false, ",") << std::endl;
 
     // Test weighted dot product functions
     Eigen::Vector3d weights(1.0, 2.0, 3.0);
