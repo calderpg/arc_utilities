@@ -6,7 +6,6 @@
 #include <random>
 #include <array>
 
-
 #ifdef ENABLE_PARALLEL
 #include <omp.h>
 #endif
