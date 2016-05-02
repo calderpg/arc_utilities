@@ -205,10 +205,15 @@ namespace simple_rrt_planner
                                                                       const T& goal,
                                                                       std::function<int64_t(const std::vector<SimpleRRTPlannerState<T, Allocator>>&, const T&)>& nearest_neighbor_fn,
                                                                       std::function<bool(const T&, const T&)>& goal_reached_fn,
-                                                                      std::function<T(void)>& sampling_fn,
+                                                                      std::function<T(void)>& state_sampling_fn,
                                                                       std::function<std::vector<std::pair<T, int64_t>>(const T&, const T&)>& forward_propagation_fn,
-                                                                      const std::chrono::duration<double>& time_limit)
+                                                                      const std::chrono::duration<double>& time_limit,
+                                                                      double goal_bias = 0.05)
         {
+            std::default_random_engine rng;
+            std::uniform_real_distribution<double> goal_bias_distribution(0.0, 1.0);
+            std::function<T(void)> sampling_fn = [&](void) { return ((goal_bias_distribution(rng) > goal_bias) ? state_sampling_fn() : goal); };
+
             std::chrono::time_point<std::chrono::high_resolution_clock> start_time = std::chrono::high_resolution_clock::now();
             std::function<bool(void)> termination_check_fn = [&](void) { return (((std::chrono::time_point<std::chrono::high_resolution_clock>)std::chrono::high_resolution_clock::now() - start_time) > time_limit); };
             // Define a couple lambdas to let us use the generic multi-path planner as if it were a single-path planner
