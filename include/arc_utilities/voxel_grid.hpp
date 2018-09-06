@@ -43,7 +43,7 @@ public:
 
   GridQuery() : item_ptr_(nullptr) {}
 
-  const T& Value() const
+  T& Value()
   {
     if (HasValue())
     {
@@ -55,11 +55,11 @@ public:
     }
   }
 
-  T& Value()
+  T& Value() const
   {
     if (HasValue())
     {
-      return const_cast<T&>(*item_ptr_);
+      return *item_ptr_;
     }
     else
     {
@@ -78,9 +78,9 @@ protected:
   // This constructor is protected because users should not be able to create
   // GridQuery<T> with a value on their own, creation should only be possible
   // within a VoxelGrid<T> to which the GridQuery<T> references.
-  explicit GridQuery(const T& item) : item_ptr_(std::addressof(item)) {}
+  explicit GridQuery(T& item) : item_ptr_(std::addressof(item)) {}
 
-  const T* item_ptr_ = nullptr;
+  T* const item_ptr_ = nullptr;
 };
 
 template<typename T, typename BackingStore>
@@ -908,19 +908,19 @@ public:
     return OnMutableAccess(index.x, index.y, index.z);
   }
 
-  inline const GridQuery<T> GetImmutable3d(
+  inline GridQuery<const T> GetImmutable3d(
       const Eigen::Vector3d& location) const
   {
     return GetImmutable(LocationToGridIndex3d(location));
   }
 
-  inline const GridQuery<T> GetImmutable4d(
+  inline GridQuery<const T> GetImmutable4d(
       const Eigen::Vector4d& location) const
   {
     return GetImmutable(LocationToGridIndex4d(location));
   }
 
-  inline const GridQuery<T> GetImmutable(const double x,
+  inline GridQuery<const T> GetImmutable(const double x,
                                          const double y,
                                          const double z) const
   {
@@ -928,30 +928,30 @@ public:
     return GetImmutable4d(location);
   }
 
-  inline const GridQuery<T> GetImmutable(const GRID_INDEX& index) const
+  inline GridQuery<const T> GetImmutable(const GRID_INDEX& index) const
   {
     if (IndexInBounds(index))
     {
-      return GridQuery<T>(AccessIndex(GetDataIndex(index)));
+      return GridQuery<const T>(AccessIndex(GetDataIndex(index)));
     }
     else
     {
-      return GridQuery<T>();
+      return GridQuery<const T>();
     }
   }
 
-  inline const GridQuery<T> GetImmutable(const int64_t x_index,
+  inline GridQuery<const T> GetImmutable(const int64_t x_index,
                                          const int64_t y_index,
                                          const int64_t z_index) const
   {
     if (IndexInBounds(x_index, y_index, z_index))
     {
-      return GridQuery<T>(
+      return GridQuery<const T>(
             AccessIndex(GetDataIndex(x_index, y_index, z_index)));
     }
     else
     {
-      return GridQuery<T>();
+      return GridQuery<const T>();
     }
   }
 
