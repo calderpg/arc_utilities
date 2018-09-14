@@ -1193,12 +1193,22 @@ public:
 
   inline GRID_INDEX LocationToGridIndex4d(const Eigen::Vector4d& location) const
   {
-    const Eigen::Vector4d point_in_grid_frame
-        = inverse_origin_transform_ * location;
-    const int64_t x_cell = (int64_t)(point_in_grid_frame(0) * inv_cell_x_size_);
-    const int64_t y_cell = (int64_t)(point_in_grid_frame(1) * inv_cell_y_size_);
-    const int64_t z_cell = (int64_t)(point_in_grid_frame(2) * inv_cell_z_size_);
-    return GRID_INDEX(x_cell, y_cell, z_cell);
+    if (location(3) == 1.0)
+    {
+      const Eigen::Vector4d point_in_grid_frame
+          = inverse_origin_transform_ * location;
+      const int64_t x_cell
+          = (int64_t)(point_in_grid_frame(0) * inv_cell_x_size_);
+      const int64_t y_cell
+          = (int64_t)(point_in_grid_frame(1) * inv_cell_y_size_);
+      const int64_t z_cell
+          = (int64_t)(point_in_grid_frame(2) * inv_cell_z_size_);
+      return GRID_INDEX(x_cell, y_cell, z_cell);
+    }
+    else
+    {
+      throw std::invalid_argument("location(3) != 1");
+    }
   }
 
   inline Eigen::Vector4d GridIndexToLocation(const GRID_INDEX& index) const
