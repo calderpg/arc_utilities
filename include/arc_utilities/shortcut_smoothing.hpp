@@ -11,7 +11,7 @@ template<typename Configuration,
 double ComputePercentCollisionFree(
   const std::vector<Configuration, ConfigAlloc>& path,
   const std::function<bool(const Configuration&,
-                             const Configuration&)>& edge_validity_check_fn)
+                           const Configuration&)>& edge_validity_check_fn)
 {
   if (path.size() >= 2)
   {
