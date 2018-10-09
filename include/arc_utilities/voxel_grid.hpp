@@ -32,7 +32,58 @@ struct GRID_INDEX
   }
 };
 
+// Forward-declare for use in GridQuery.
 template<typename T, typename BackingStore=std::vector<T>>
+class VoxelGrid;
+
+template<typename T>
+class GridQuery
+{
+public:
+
+  GridQuery() : item_ptr_(nullptr) {}
+
+  T& Value()
+  {
+    if (HasValue())
+    {
+      return *item_ptr_;
+    }
+    else
+    {
+      throw std::runtime_error("GridQuery does not have value");
+    }
+  }
+
+  T& Value() const
+  {
+    if (HasValue())
+    {
+      return *item_ptr_;
+    }
+    else
+    {
+      throw std::runtime_error("GridQuery does not have value");
+    }
+  }
+
+  bool HasValue() const { return item_ptr_ != nullptr; }
+
+  explicit operator bool() const { return HasValue(); }
+
+protected:
+
+  template<typename Item, typename BackingStore> friend class VoxelGrid;
+
+  // This constructor is protected because users should not be able to create
+  // GridQuery<T> with a value on their own, creation should only be possible
+  // within a VoxelGrid<T> to which the GridQuery<T> references.
+  explicit GridQuery(T& item) : item_ptr_(std::addressof(item)) {}
+
+  T* const item_ptr_ = nullptr;
+};
+
+template<typename T, typename BackingStore>
 class VoxelGrid
 {
 protected:
@@ -842,170 +893,136 @@ public:
     return IndexInBounds(index);
   }
 
-  inline std::pair<const T&, bool> GetImmutable3d(
+  virtual bool OnMutableAccess(const int64_t x_index,
+                               const int64_t y_index,
+                               const int64_t z_index)
+  {
+    UNUSED(x_index);
+    UNUSED(y_index);
+    UNUSED(z_index);
+    return true;
+  }
+
+  bool OnMutableAccess(const GRID_INDEX& index)
+  {
+    return OnMutableAccess(index.x, index.y, index.z);
+  }
+
+  inline GridQuery<const T> GetImmutable3d(
       const Eigen::Vector3d& location) const
   {
-    const GRID_INDEX index = LocationToGridIndex3d(location);
-    if (IndexInBounds(index))
-    {
-      return GetImmutable(index);
-    }
-    else
-    {
-      return std::pair<const T&, bool>(oob_value_, false);
-    }
+    return GetImmutable(LocationToGridIndex3d(location));
   }
 
-  inline std::pair<const T&, bool> GetImmutable4d(
+  inline GridQuery<const T> GetImmutable4d(
       const Eigen::Vector4d& location) const
   {
-    const GRID_INDEX index = LocationToGridIndex4d(location);
-    if (IndexInBounds(index))
-    {
-      return GetImmutable(index);
-    }
-    else
-    {
-      return std::pair<const T&, bool>(oob_value_, false);
-    }
+    return GetImmutable(LocationToGridIndex4d(location));
   }
 
-  inline std::pair<const T&, bool> GetImmutable(const double x,
-                                                const double y,
-                                                const double z) const
+  inline GridQuery<const T> GetImmutable(const double x,
+                                         const double y,
+                                         const double z) const
   {
     const Eigen::Vector4d location(x, y, z, 1.0);
     return GetImmutable4d(location);
   }
 
-  inline std::pair<const T&, bool> GetImmutable(const GRID_INDEX& index) const
+  inline GridQuery<const T> GetImmutable(const GRID_INDEX& index) const
   {
     if (IndexInBounds(index))
     {
-      return std::pair<const T&, bool>(AccessIndex(GetDataIndex(index)), true);
+      return GridQuery<const T>(AccessIndex(GetDataIndex(index)));
     }
     else
     {
-      return std::pair<const T&, bool>(oob_value_, false);
+      return GridQuery<const T>();
     }
   }
 
-  inline std::pair<const T&, bool> GetImmutable(const int64_t x_index,
-                                                const int64_t y_index,
-                                                const int64_t z_index) const
+  inline GridQuery<const T> GetImmutable(const int64_t x_index,
+                                         const int64_t y_index,
+                                         const int64_t z_index) const
   {
     if (IndexInBounds(x_index, y_index, z_index))
     {
-      return std::pair<const T&, bool>(
-            AccessIndex(GetDataIndex(x_index, y_index, z_index)), true);
+      return GridQuery<const T>(
+            AccessIndex(GetDataIndex(x_index, y_index, z_index)));
     }
     else
     {
-      return std::pair<const T&, bool>(oob_value_, false);
+      return GridQuery<const T>();
     }
   }
 
-  virtual std::pair<T&, bool> GetMutable3d(const Eigen::Vector3d& location)
+  GridQuery<T> GetMutable3d(const Eigen::Vector3d& location)
   {
-    const GRID_INDEX index = LocationToGridIndex3d(location);
-    if (IndexInBounds(index))
-    {
-      return GetMutable(index);
-    }
-    else
-    {
-      return std::pair<T&, bool>(oob_value_, false);
-    }
+    return GetMutable(LocationToGridIndex3d(location));
   }
 
-  virtual std::pair<T&, bool> GetMutable4d(const Eigen::Vector4d& location)
+  GridQuery<T> GetMutable4d(const Eigen::Vector4d& location)
   {
-    const GRID_INDEX index = LocationToGridIndex4d(location);
-    if (IndexInBounds(index))
-    {
-      return GetMutable(index);
-    }
-    else
-    {
-      return std::pair<T&, bool>(oob_value_, false);
-    }
+    return GetMutable(LocationToGridIndex4d(location));
   }
 
-  virtual std::pair<T&, bool> GetMutable(const double x,
-                                        const double y,
-                                        const double z)
+  GridQuery<T> GetMutable(const double x,
+                          const double y,
+                          const double z)
   {
     const Eigen::Vector4d location(x, y, z, 1.0);
     return GetMutable4d(location);
   }
 
-  virtual std::pair<T&, bool> GetMutable(const GRID_INDEX& index)
+  GridQuery<T> GetMutable(const GRID_INDEX& index)
   {
-    if (IndexInBounds(index))
+    if (IndexInBounds(index) && OnMutableAccess(index))
     {
-      return std::pair<T&, bool>(AccessIndex(GetDataIndex(index)), true);
+      return GridQuery<T>(AccessIndex(GetDataIndex(index)));
     }
     else
     {
-      return std::pair<T&, bool>(oob_value_, false);
+      return GridQuery<T>();
     }
   }
 
-  virtual std::pair<T&, bool> GetMutable(const int64_t x_index,
-                                        const int64_t y_index,
-                                        const int64_t z_index)
+  GridQuery<T> GetMutable(const int64_t x_index,
+                          const int64_t y_index,
+                          const int64_t z_index)
   {
-    if (IndexInBounds(x_index, y_index, z_index))
+    if (IndexInBounds(x_index, y_index, z_index) &&
+        OnMutableAccess(x_index, y_index, z_index))
     {
-      return std::pair<T&, bool>(
-            AccessIndex(GetDataIndex(x_index, y_index, z_index)), true);
+      return GridQuery<T>(
+            AccessIndex(GetDataIndex(x_index, y_index, z_index)));
     }
     else
     {
-      return std::pair<T&, bool>(oob_value_, false);
+      return GridQuery<T>();
     }
   }
 
-  virtual bool SetValue3d(const Eigen::Vector3d& location,
-                          const T& value)
+  bool SetValue3d(const Eigen::Vector3d& location, const T& value)
   {
-    const GRID_INDEX index = LocationToGridIndex3d(location);
-    if (IndexInBounds(index))
-    {
-      return SetValue(index, value);
-    }
-    else
-    {
-      return false;
-    }
+    return SetValue(LocationToGridIndex3d(location), value);
   }
 
-  virtual bool SetValue4d(const Eigen::Vector4d& location,
-                          const T& value)
+  bool SetValue4d(const Eigen::Vector4d& location, const T& value)
   {
-    const GRID_INDEX index = LocationToGridIndex4d(location);
-    if (IndexInBounds(index))
-    {
-      return SetValue(index, value);
-    }
-    else
-    {
-      return false;
-    }
+    return SetValue(LocationToGridIndex4d(location), value);
   }
 
-  virtual bool SetValue(const double x,
-                        const double y,
-                        const double z,
-                        const T& value)
+  bool SetValue(const double x,
+                const double y,
+                const double z,
+                const T& value)
   {
     const Eigen::Vector4d location(x, y, z, 1.0);
     return SetValue4d(location, value);
   }
 
-  virtual bool SetValue(const GRID_INDEX& index, const T& value)
+  bool SetValue(const GRID_INDEX& index, const T& value)
   {
-    if (IndexInBounds(index))
+    if (IndexInBounds(index) && OnMutableAccess(index))
     {
       AccessIndex(GetDataIndex(index)) = value;
       return true;
@@ -1016,12 +1033,13 @@ public:
     }
   }
 
-  virtual bool SetValue(const int64_t x_index,
-                        const int64_t y_index,
-                        const int64_t z_index,
-                        const T& value)
+  bool SetValue(const int64_t x_index,
+                const int64_t y_index,
+                const int64_t z_index,
+                const T& value)
   {
-    if (IndexInBounds(x_index, y_index, z_index))
+    if (IndexInBounds(x_index, y_index, z_index) &&
+        OnMutableAccess(x_index, y_index, z_index))
     {
       AccessIndex(GetDataIndex(x_index, y_index, z_index)) = value;
       return true;
@@ -1032,44 +1050,28 @@ public:
     }
   }
 
-  virtual bool SetValue3d(const Eigen::Vector3d& location, T&& value)
+  bool SetValue3d(const Eigen::Vector3d& location, T&& value)
   {
-    const GRID_INDEX index = LocationToGridIndex3d(location);
-    if (IndexInBounds(index))
-    {
-      return SetValue(index, value);
-    }
-    else
-    {
-      return false;
-    }
+    return SetValue(LocationToGridIndex3d(location), value);
   }
 
-  virtual bool SetValue4d(const Eigen::Vector4d& location, T&& value)
+  bool SetValue4d(const Eigen::Vector4d& location, T&& value)
   {
-    const GRID_INDEX index = LocationToGridIndex4d(location);
-    if (IndexInBounds(index))
-    {
-      return SetValue(index, value);
-    }
-    else
-    {
-      return false;
-    }
+    return SetValue(LocationToGridIndex4d(location), value);
   }
 
-  virtual bool SetValue(const double x,
-                        const double y,
-                        const double z,
-                        T&& value)
+  bool SetValue(const double x,
+                const double y,
+                const double z,
+                T&& value)
   {
     const Eigen::Vector4d location(x, y, z, 1.0);
     return SetValue4d(location, value);
   }
 
-  virtual bool SetValue(const GRID_INDEX& index, T&& value)
+  bool SetValue(const GRID_INDEX& index, T&& value)
   {
-    if (IndexInBounds(index))
+    if (IndexInBounds(index) && OnMutableAccess(index))
     {
       AccessIndex(GetDataIndex(index)) = value;
       return true;
@@ -1080,12 +1082,13 @@ public:
     }
   }
 
-  virtual bool SetValue(const int64_t x_index,
-                        const int64_t y_index,
-                        const int64_t z_index,
-                        T&& value)
+  bool SetValue(const int64_t x_index,
+                const int64_t y_index,
+                const int64_t z_index,
+                T&& value)
   {
-    if (IndexInBounds(x_index, y_index, z_index))
+    if (IndexInBounds(x_index, y_index, z_index) &&
+        OnMutableAccess(x_index, y_index, z_index))
     {
       AccessIndex(GetDataIndex(x_index, y_index, z_index)) = value;
       return true;
@@ -1190,12 +1193,22 @@ public:
 
   inline GRID_INDEX LocationToGridIndex4d(const Eigen::Vector4d& location) const
   {
-    const Eigen::Vector4d point_in_grid_frame
-        = inverse_origin_transform_ * location;
-    const int64_t x_cell = (int64_t)(point_in_grid_frame(0) * inv_cell_x_size_);
-    const int64_t y_cell = (int64_t)(point_in_grid_frame(1) * inv_cell_y_size_);
-    const int64_t z_cell = (int64_t)(point_in_grid_frame(2) * inv_cell_z_size_);
-    return GRID_INDEX(x_cell, y_cell, z_cell);
+    if (location(3) == 1.0)
+    {
+      const Eigen::Vector4d point_in_grid_frame
+          = inverse_origin_transform_ * location;
+      const int64_t x_cell
+          = (int64_t)(point_in_grid_frame(0) * inv_cell_x_size_);
+      const int64_t y_cell
+          = (int64_t)(point_in_grid_frame(1) * inv_cell_y_size_);
+      const int64_t z_cell
+          = (int64_t)(point_in_grid_frame(2) * inv_cell_z_size_);
+      return GRID_INDEX(x_cell, y_cell, z_cell);
+    }
+    else
+    {
+      throw std::invalid_argument("location(3) != 1");
+    }
   }
 
   inline Eigen::Vector4d GridIndexToLocation(const GRID_INDEX& index) const
